@@ -1,5 +1,5 @@
 import { combineReducers } from 'redux';
-import { ADD_TODO_REQUEST, ADD_TODO_SUCCESS, ADD_TODO_FAILURE, ADD_TODO, COMPLETE_TODO, SET_VISIBILITY_FILTER, VisibilityFilters } from './actions';
+import { FETCH_TODOS_REQUEST, FETCH_TODOS_SUCCESS, FETCH_TODOS_FAILURE, ADD_TODO_REQUEST, ADD_TODO_SUCCESS, ADD_TODO_FAILURE, ADD_TODO, COMPLETE_TODO, SET_VISIBILITY_FILTER, VisibilityFilters } from './actions';
 const { SHOW_ALL } = VisibilityFilters;
 
 function visibilityFilter(state = SHOW_ALL, action) {
@@ -13,6 +13,8 @@ function visibilityFilter(state = SHOW_ALL, action) {
 
 function todos(state = [], action) {
   switch (action.type) {
+    case FETCH_TODOS_SUCCESS:
+      return [].concat(action.todos);
     case ADD_TODO_REQUEST:
       return [
         ...state,
@@ -40,9 +42,24 @@ function todos(state = [], action) {
   }
 }
 
+function isLoading(state = false, action) {
+  switch (action.type) {
+    case FETCH_TODOS_REQUEST:
+      return true;
+
+    case FETCH_TODOS_SUCCESS:
+    case FETCH_TODOS_FAILURE:
+      return false;
+
+    default:
+      return state;
+  }
+}
+
 const todoApp = combineReducers({
   visibilityFilter,
-  todos
+  todos,
+  isLoading
 });
 
 export default todoApp;

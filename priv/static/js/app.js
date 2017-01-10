@@ -24682,7 +24682,7 @@
 	      var dispatch = this.props.dispatch;
 
 
-	      dispatch((0, _actions.subscribeTodos)());
+	      dispatch((0, _actions.fetchTodos)());
 	    }
 	  }, {
 	    key: 'render',
@@ -24691,7 +24691,9 @@
 	      var _props = this.props,
 	          dispatch = _props.dispatch,
 	          visibleTodos = _props.visibleTodos,
+	          isLoading = _props.isLoading,
 	          visibilityFilter = _props.visibilityFilter;
+
 
 	      return _react2.default.createElement(
 	        'div',
@@ -24702,6 +24704,7 @@
 	          } }),
 	        _react2.default.createElement(_List2.default, {
 	          todos: visibleTodos,
+	          isLoading: isLoading,
 	          onTodoClick: function onTodoClick(index) {
 	            return dispatch((0, _actions.completeTodo)(index));
 	          } }),
@@ -24745,7 +24748,8 @@
 	function select(state) {
 	  return {
 	    visibleTodos: selectTodos(state.todos, state.visibilityFilter),
-	    visibilityFilter: state.visibilityFilter
+	    visibilityFilter: state.visibilityFilter,
+	    isLoading: state.isLoading
 	  };
 	}
 
@@ -24761,19 +24765,24 @@
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-	exports.VisibilityFilters = exports.SET_VISIBILITY_FILTER = exports.COMPLETE_TODO = exports.ADD_TODO_FAILURE = exports.ADD_TODO_SUCCESS = exports.ADD_TODO_REQUEST = undefined;
+	exports.VisibilityFilters = exports.SET_VISIBILITY_FILTER = exports.COMPLETE_TODO = exports.ADD_TODO_FAILURE = exports.ADD_TODO_SUCCESS = exports.ADD_TODO_REQUEST = exports.FETCH_TODOS_FAILURE = exports.FETCH_TODOS_SUCCESS = exports.FETCH_TODOS_REQUEST = undefined;
 	exports.addTodo = addTodo;
-	exports.subscribeTodos = subscribeTodos;
+	exports.fetchTodos = fetchTodos;
 	exports.completeTodo = completeTodo;
 	exports.setVisibilityFilter = setVisibilityFilter;
 
 	var _channel = __webpack_require__(225);
 
-	var channel = (0, _channel.configureChannel)();
+	var socket = (0, _channel.configureChannel)();
+	var channel = socket.channel('todos');
 
 	/*
 	 * action types
 	 */
+
+	var FETCH_TODOS_REQUEST = exports.FETCH_TODOS_REQUEST = 'FETCH_TODOS_REQUEST';
+	var FETCH_TODOS_SUCCESS = exports.FETCH_TODOS_SUCCESS = 'FETCH_TODOS_SUCCESS';
+	var FETCH_TODOS_FAILURE = exports.FETCH_TODOS_FAILURE = 'FETCH_TODOS_FAILURE';
 
 	var ADD_TODO_REQUEST = exports.ADD_TODO_REQUEST = 'ADD_TODO_REQUEST';
 	var ADD_TODO_SUCCESS = exports.ADD_TODO_SUCCESS = 'ADD_TODO_SUCCESS';
@@ -24796,6 +24805,18 @@
 	 * action creators
 	 */
 
+	function fetchTodosRequest() {
+	  return { type: FETCH_TODOS_REQUEST };
+	}
+
+	function fetchTodosSuccess(todos) {
+	  return { type: FETCH_TODOS_SUCCESS, todos: todos };
+	}
+
+	function fetchTodosFailure(error) {
+	  return { type: FETCH_TODOS_FAILURE, error: error };
+	}
+
 	function addTodoRequest(text) {
 	  return { type: ADD_TODO_REQUEST, text: text };
 	}
@@ -24816,12 +24837,8 @@
 	      text: text
 	    };
 
-	    console.log('adding todo');
-
-	    // add todo, then dispatch success/failure
 	    channel.push('new:todo', payload).receive('ok', function (response) {
 	      console.log('created TODO', response);
-	      // dispatch(addTodoSuccess(text));
 	    }).receive('error', function (error) {
 	      console.error(error);
 	      dispatch(addTodoFailure(text, error));
@@ -24829,8 +24846,20 @@
 	  };
 	}
 
-	function subscribeTodos() {
+	function fetchTodos() {
 	  return function (dispatch) {
+	    dispatch(fetchTodosRequest());
+
+	    channel.join().receive('ok', function (messages) {
+	      console.log('catching up', messages);
+	      dispatch(fetchTodosSuccess(messages.todos));
+	    });
+	    // .receive('error', reason => {
+	    //   console.log('failed join', reason);
+	    //   dispatch(fetchTodosFailure(reason));
+	    // })
+	    // .after(10000, () => console.log('Networking issue. Still waiting...'));
+
 	    channel.on('new:todo', function (msg) {
 	      console.log('new:todo', msg);
 	      dispatch(addTodoSuccess(msg.text));
@@ -24865,21 +24894,10 @@
 	      console.log(kind + ': ' + msg, data);
 	    }
 	  });
+
 	  socket.connect();
 
-	  var channel = socket.channel('todos:1');
-
-	  channel.on('new:todo', function (msg) {
-	    return console.log('new:todo', msg);
-	  });
-
-	  channel.join().receive('ok', function (messages) {
-	    return console.log('catching up', messages);
-	  });
-	  // .receive('error', reason => console.log('failed join', reason))
-	  // .after(10000, () => console.log('Networking issue. Still waiting...'));
-
-	  return channel;
+	  return socket;
 	}
 
 /***/ },
@@ -26268,6 +26286,18 @@
 	    value: function render() {
 	      var _this2 = this;
 
+	      if (this.props.isLoading) {
+	        return _react2.default.createElement(
+	          'p',
+	          null,
+	          _react2.default.createElement(
+	            'em',
+	            null,
+	            'Loading ...'
+	          )
+	        );
+	      }
+
 	      return _react2.default.createElement(
 	        'ul',
 	        null,
@@ -26293,7 +26323,8 @@
 	  todos: _react.PropTypes.arrayOf(_react.PropTypes.shape({
 	    text: _react.PropTypes.string.isRequired,
 	    completed: _react.PropTypes.bool.isRequired
-	  }).isRequired).isRequired
+	  }).isRequired).isRequired,
+	  isLoading: _react.PropTypes.bool.isRequired
 	};
 
 /***/ },
@@ -26473,6 +26504,8 @@
 	  var action = arguments[1];
 
 	  switch (action.type) {
+	    case _actions.FETCH_TODOS_SUCCESS:
+	      return [].concat(action.todos);
 	    case _actions.ADD_TODO_REQUEST:
 	      return [].concat(_toConsumableArray(state), [{
 	        text: action.text,
@@ -26493,9 +26526,27 @@
 	  }
 	}
 
+	function isLoading() {
+	  var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+	  var action = arguments[1];
+
+	  switch (action.type) {
+	    case _actions.FETCH_TODOS_REQUEST:
+	      return true;
+
+	    case _actions.FETCH_TODOS_SUCCESS:
+	    case _actions.FETCH_TODOS_FAILURE:
+	      return false;
+
+	    default:
+	      return state;
+	  }
+	}
+
 	var todoApp = (0, _redux.combineReducers)({
 	  visibilityFilter: visibilityFilter,
-	  todos: todos
+	  todos: todos,
+	  isLoading: isLoading
 	});
 
 	exports.default = todoApp;

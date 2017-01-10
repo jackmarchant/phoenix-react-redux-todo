@@ -3,6 +3,12 @@ import Todo from './index';
 
 export default class TodoList extends Component {
   render() {
+    if (this.props.isLoading) {
+      return (
+        <p><em>Loading ...</em></p>
+      );
+    }
+
     return (
       <ul>
         {this.props.todos.map((todo, index) =>
@@ -11,7 +17,7 @@ export default class TodoList extends Component {
                 onClick={() => this.props.onTodoClick(index)} />
         )}
       </ul>
-    )
+    );
   }
 }
 
@@ -20,5 +26,6 @@ TodoList.propTypes = {
   todos: PropTypes.arrayOf(PropTypes.shape({
     text: PropTypes.string.isRequired,
     completed: PropTypes.bool.isRequired
-  }).isRequired).isRequired
+  }).isRequired).isRequired,
+  isLoading: PropTypes.bool.isRequired,
 };
